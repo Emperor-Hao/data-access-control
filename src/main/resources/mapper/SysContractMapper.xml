@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kele.dataaccesscontrol.mapper.SysContractMapper">
+
+    <!--
+        合同列表查询：和用户列表共用同一个 @DataScope + DataScopeAspect，
+        只需在 Service 方法上标注并指定别名，即可对任意业务表做数据权限过滤。
+        别名约定：d = sys_dept，u = sys_user（"仅本人"时按 c.create_by 匹配 u.user_id）
+    -->
+    <select id="selectContractList" parameterType="com.kele.dataaccesscontrol.entity.SysContract"
+            resultType="com.kele.dataaccesscontrol.entity.SysContract">
+        SELECT
+            c.contract_id,
+            c.contract_no,
+            c.contract_name,
+            c.amount,
+            c.dept_id,
+            c.create_by,
+            c.create_time,
+            d.dept_name,
+            u.nick_name AS create_by_name
+        FROM sys_contract c
+        LEFT JOIN sys_dept d ON d.dept_id = c.dept_id
+        LEFT JOIN sys_user u ON u.user_id = c.create_by
+        WHERE c.del_flag = '0'
+        <if test="contractName != null and contractName != ''">
+            AND c.contract_name LIKE CONCAT('%', #{contractName}, '%')
+        </if>
+        <if test="deptId != null">
+            AND c.dept_id = #{deptId}
+        </if>
+        <if test="params.dataScope != null and params.dataScope != ''">
+            AND ${params.dataScope}
+        </if>
+        ORDER BY c.contract_id
+    </select>
+
+</mapper>

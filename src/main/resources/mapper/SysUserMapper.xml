@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kele.dataaccesscontrol.mapper.SysUserMapper">
+
+    <sql id="selectUserVo">
+        SELECT
+            u.user_id,
+            u.dept_id,
+            u.user_name,
+            u.nick_name,
+            u.data_scope,
+            u.status,
+            u.del_flag,
+            u.create_time,
+            u.update_time,
+            d.dept_name,
+            (
+                SELECT GROUP_CONCAT(r.role_name ORDER BY r.role_id SEPARATOR '、')
+                FROM sys_user_role ur
+                INNER JOIN sys_role r ON r.role_id = ur.role_id
+                WHERE ur.user_id = u.user_id
+            ) AS role_names
+        FROM sys_user u
+        LEFT JOIN sys_dept d ON d.dept_id = u.dept_id
+    </sql>
+
+    <!--
+        数据权限过滤关键点：
+        1. Service 方法标注 @DataScope(deptAlias="d", userAlias="u")
+        2. DataScopeAspect 根据当前登录用户拼出 SQL 片段，注入 params.dataScope
+        3. 这里用 ${params.dataScope} 把片段拼进 WHERE（片段由切面内部生成，不接外部输入）
+    -->
+    <select id="selectUserList" parameterType="com.kele.dataaccesscontrol.entity.SysUser"
+            resultType="com.kele.dataaccesscontrol.entity.SysUser">
+        <include refid="selectUserVo"/>
+        WHERE u.del_flag = '0'
+        <if test="userName != null and userName != ''">
+            AND u.user_name LIKE CONCAT('%', #{userName}, '%')
+        </if>
+        <if test="deptId != null">
+            AND u.dept_id = #{deptId}
+        </if>
+        <if test="params.dataScope != null and params.dataScope != ''">
+            AND ${params.dataScope}
+        </if>
+        ORDER BY u.user_id
+    </select>
+
+    <select id="selectUserById" resultType="com.kele.dataaccesscontrol.entity.SysUser">
+        SELECT user_id, dept_id, user_name, nick_name, data_scope, status, del_flag, create_time, update_time
+        FROM sys_user
+        WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectDeptIdsByUserId" resultType="java.lang.Long">
+        SELECT dept_id
+        FROM sys_user_dept
+        WHERE user_id = #{userId}
+    </select>
+
+</mapper>

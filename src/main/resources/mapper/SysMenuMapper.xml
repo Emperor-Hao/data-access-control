@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kele.dataaccesscontrol.mapper.SysMenuMapper">
+
+  <!-- ===== 结果映射 ===== -->
+  <resultMap id="menuMap" type="com.kele.dataaccesscontrol.entity.SysMenu">
+    <id property="menuId" column="menu_id"/>
+    <result property="parentId" column="parent_id"/>
+    <result property="menuName" column="menu_name"/>
+    <result property="path" column="path"/>
+    <result property="component" column="component"/>
+    <result property="menuType" column="menu_type"/>
+    <result property="icon" column="icon"/>
+    <result property="orderNum" column="order_num"/>
+    <result property="status" column="status"/>
+  </resultMap>
+
+  <!-- ===== 公共字段 ===== -->
+  <sql id="columns">
+    menu_id, parent_id, menu_name, path, component,
+        menu_type, icon, order_num, status
+  </sql>
+
+  <!-- ===== 菜单查询 ===== -->
+
+  <!-- 查询指定用户可见的菜单列表 -->
+  <select id="selectMenuList" resultMap="menuMap">
+    SELECT
+      m.menu_id, m.parent_id, m.menu_name, m.path, m.component,
+      m.menu_type, m.icon, m.order_num, m.status
+    FROM sys_menu m
+           JOIN sys_role_menu rm ON rm.menu_id = m.menu_id
+           JOIN sys_user_role ur ON ur.role_id = rm.role_id
+    WHERE ur.user_id = #{userId}
+      AND m.status = '0'
+    ORDER BY m.parent_id, m.order_num
+  </select>
+
+  <!-- 查询全部菜单列表 -->
+  <select id="selectAllMenuList" resultMap="menuMap">
+    SELECT
+    <include refid="columns"/>
+    FROM sys_menu
+    WHERE status = '0'
+    ORDER BY parent_id, order_num
+  </select>
+
+  <!-- ===== 角色查询 ===== -->
+
+  <!-- 查询所有角色 -->
+  <select id="selectRoleList" resultType="com.kele.dataaccesscontrol.entity.SysRole">
+    SELECT role_id, role_name, role_key, status
+    FROM sys_role
+    WHERE status = '0'
+    ORDER BY role_id
+  </select>
+
+  <!-- 查询指定角色已授权的菜单 ID 列表 -->
+  <select id="selectRoleMenuIds" resultType="long">
+    SELECT menu_id
+    FROM sys_role_menu
+    WHERE role_id = #{roleId}
+  </select>
+
+  <!-- ===== 统计查询 ===== -->
+
+  <!-- 统计用户拥有管理员角色的数量 -->
+  <select id="countUserAdminRole" resultType="int">
+    SELECT COUNT(1)
+    FROM sys_user_role ur
+           JOIN sys_role r ON r.role_id = ur.role_id
+    WHERE ur.user_id = #{userId}
+      AND r.role_key = 'admin'
+  </select>
+
+  <!-- 统计指定菜单的子菜单数量 -->
+  <select id="countChildMenus" resultType="int">
+    SELECT COUNT(1)
+    FROM sys_menu
+    WHERE parent_id = #{menuId}
+  </select>
+
+  <!-- ===== 菜单增删改 ===== -->
+
+  <!-- 新增菜单 -->
+  <insert id="insertMenu" useGeneratedKeys="true" keyProperty="menuId">
+    INSERT INTO sys_menu
+    (parent_id, menu_name, path, component, menu_type, icon, order_num, status)
+    VALUES
+      (#{parentId}, #{menuName}, #{path}, #{component},
+       #{menuType}, #{icon}, #{orderNum}, #{status})
+  </insert>
+
+  <!-- 更新菜单 -->
+  <update id="updateMenu">
+    UPDATE sys_menu
+    SET parent_id   = #{parentId},
+        menu_name   = #{menuName},
+        path        = #{path},
+        component   = #{component},
+        menu_type   = #{menuType},
+        icon        = #{icon},
+        order_num   = #{orderNum},
+        status      = #{status}
+    WHERE menu_id = #{menuId}
+  </update>
+
+  <!-- 删除菜单 -->
+  <delete id="deleteMenu">
+    DELETE FROM sys_menu
+    WHERE menu_id = #{menuId}
+  </delete>
+
+  <!-- ===== 角色-菜单关联 ===== -->
+
+  <!-- 删除指定角色的所有菜单授权关系 -->
+  <delete id="deleteRoleMenus">
+    DELETE FROM sys_role_menu
+    WHERE role_id = #{roleId}
+  </delete>
+
+  <!-- 新增角色与菜单的授权关系 -->
+  <insert id="insertRoleMenu">
+    INSERT INTO sys_role_menu (role_id, menu_id)
+    VALUES (#{roleId}, #{menuId})
+  </insert>
+
+</mapper>
